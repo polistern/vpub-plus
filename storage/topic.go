@@ -5,6 +5,23 @@ import (
 	"vpub/model"
 )
 
+func (s *Storage) Topics() ([]model.Topic, error) {
+	rows, err := s.db.Query("select id, board_id, post_id from topics")
+	if err != nil {
+		return nil, err
+	}
+	var topics []model.Topic
+	for rows.Next() {
+		var topic model.Topic
+		err := rows.Scan(&topic.Id, &topic.BoardId, &topic.Post.Id)
+		if err != nil {
+			return topics, err
+		}
+		topics = append(topics, topic)
+	}
+	return topics, nil
+}
+
 func (s *Storage) CreateTopic(userId int64, request model.TopicRequest) (int64, error) {
 	var topicId int64
 	ctx := context.Background()

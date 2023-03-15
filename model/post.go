@@ -14,10 +14,11 @@ type Post struct {
 	UpdatedAt time.Time
 }
 
-// PostRequest represents the request to create or update a post.
+// PostRequest represents the request to create, update or move a post.
 type PostRequest struct {
 	Subject string
 	Content string
+	TopicId int64
 }
 
 func (p Post) Date() string {

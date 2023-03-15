@@ -150,6 +150,18 @@ var TplCommonMap = map[string]string{
 {{ end }}`,
 	"post_form": `{{ define "post_form" }}
     <input type="hidden" name="topicId" value="{{ .TopicId }}">
+    {{ if .UserIsAdmin }}
+    <div class="field">
+    <label for="subject">Topic</label>
+        <select name="topicIdNew" id="topicIdNew">
+            {{ range $Id, $Name := .Topics }}
+                <option value="{{ $Id }}" {{ if eq $Id $.TopicId }}selected{{ end }}>{{ $Name }}</option>
+            {{ end }}
+        </select>
+    </div>
+    {{ else }}
+    <input type="hidden" name="topicIdNew" value="{{ .TopicId }}">
+    {{ end }}
     <div class="field">
         <label for="subject">Subject</label>
         <input type="text" name="subject" id="subject" value="{{ .Subject }}" autocomplete="off" maxlength="115"

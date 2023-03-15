@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"errors"
 	"vpub/model"
 )
@@ -180,6 +181,61 @@ func (s *Storage) UpdatePost(id, userId int64, request model.PostRequest) error 
 	}
 
 	return nil
+}
+
+func (s *Storage) UpdateAndMovePost(id, userId, newTopicId, oldTopicId int64, request model.PostRequest) error {
+	ctx := context.Background()
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE posts
+        SET 
+            subject=$1,
+            content=$2,
+            updated_at=now(),
+            topic_id=$3 
+        WHERE 
+            id=$4 AND (SELECT is_admin FROM users WHERE id=$5)
+    `,
+		request.Subject,
+		request.Content,
+		newTopicId,
+		id,
+		userId,
+	); err != nil {
+		return errors.New("Unable to move or update post: " + err.Error())
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+        UPDATE topics SET
+            posts_count = (SELECT posts_count FROM topics WHERE id=$1) + 1
+        WHERE id=$1 AND (SELECT is_admin FROM users WHERE id=$2)
+    `,
+		newTopicId,
+		userId,
+	); err != nil {
+		tx.Rollback()
+		return errors.New("Unable to increase posts count: " + err.Error())
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+        UPDATE topics SET
+            posts_count = (SELECT posts_count FROM topics WHERE id=$1) - 1
+        WHERE id=$1 AND posts_count > 0 AND (SELECT is_admin FROM users WHERE id=$2)
+    `,
+		oldTopicId,
+		userId,
+	); err != nil {
+		tx.Rollback()
+		return errors.New("Unable to decrease posts count: " + err.Error())
+	}
+
+	err = tx.Commit()
+	return err
 }
 
 func (s *Storage) NewestPostFromTopic(topicId int64) (int64, error) {
